@@ -103,7 +103,7 @@ Level 3: F+F--F+F+F+F--F+F--F+F--F+F+F+F--F+F--F+F--F+F+F+F--F+F--F+F--F+F+F+F--
 */
 ```
 #### Output
-![koch snowflake](https://github.com/Pepton21/turtle-graphics-compiler/master/images/koch_snowflake.png)
+![koch snowflake](https://github.com/Pepton21/turtle-graphics-compiler/blob/master/images/koch_snowflake.png)
 
 ### 3. Cantor Set
 #### Source code
