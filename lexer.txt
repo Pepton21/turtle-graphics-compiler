@@ -1,0 +1,132 @@
+O   [0-7]
+D   [0-9]
+NZ  [1-9]
+L   [a-zA-Z_]
+A   [a-zA-Z_0-9]
+H   [a-fA-F0-9]
+HP  (0[xX])
+E   ([Ee][+-]?{D}+)
+ES  (\\(['"\?\\abfnrtv]|[0-7]{1,3}|x[a-fA-F0-9]+))
+WS  [ \t\v\n\f]
+
+%{
+#include <stdio.h>
+#include <string.h>
+
+#include "parse_tree.h"
+#include "y.tab.h"
+
+#define YY_USER_ACTION yylloc.first_line = yylloc.last_line = yylineno;
+
+int prev_start;
+void yyerror (char const *s);
+void count();
+%}
+
+%option yylineno
+
+%x                      COMMENT
+
+%%
+
+"//".*                  { /* do nothing */ }
+
+"/*"                    { prev_start = YY_START; BEGIN COMMENT; }
+<COMMENT>"*/"           { BEGIN prev_start; }
+<COMMENT>.|\n           { /* do nothing */ }
+<COMMENT><<EOF>>        { yyerror("Unclosed comment"); }
+
+"fn"        { count(); return(FUNCTION); }
+"break"	 		{ count(); return(BREAK); }
+"real"			{ count(); return(REAL); }
+"str"			{ count(); return(STRING); }
+"bool"			{ count(); return(BOOL); }
+"continue"		{ count(); return(CONTINUE); }
+"do"			{ count(); return(DO); }
+"else"			{ count(); return(ELSE); }
+"for"			{ count(); return(FOR); }
+"if"			{ count(); return(IF); }
+"int"			{ count(); return(INT); }
+"returns"		{ count(); return(RETURN); }
+"while"			{ count(); return(WHILE); }
+
+"True"		{ yylval.no = 1; count(); return(BOOL_LITERAL); }
+"False"		{ yylval.no = 0; count(); return(BOOL_LITERAL); }
+
+{L}{A}*				{ strcpy(yylval.str, yytext); count(); return(IDENTIFIER); }
+
+{HP}{H}+			{ yylval.no = (int) strtol(yytext + 2, NULL, 16); count(); return(INT_LITERAL); }
+{NZ}{D}*			{ yylval.no = (int) strtol(yytext, NULL, 10); count(); return(INT_LITERAL); }
+"0"{O}*				{ yylval.no = (int) strtol(yytext + 1, NULL, 8); count(); return(INT_LITERAL); }
+
+{D}+{E}				{ yylval.dbl = atof(yytext); count(); return (REAL_LITERAL); }
+{D}*"."{D}+{E}?		{ yylval.dbl = atof(yytext); count(); return (REAL_LITERAL); }
+{D}+"."{E}?			{ yylval.dbl = atof(yytext); count(); return (REAL_LITERAL); }
+
+\"([^"\\\n]|{ES})*\"	{ strcpy(yylval.str, yytext + 1); yylval.str[strlen(yylval.str) - 1] = '\0'; count(); return(STRING_LITERAL); }
+ 
+"+="			{ count(); return(ADD_ASSIGN); }
+"-="			{ count(); return(SUB_ASSIGN); }
+"*="			{ count(); return(MUL_ASSIGN); }
+"/="			{ count(); return(DIV_ASSIGN); }
+"%="			{ count(); return(MOD_ASSIGN); }
+"++"			{ count(); return(INC_OP); }
+"--"			{ count(); return(DEC_OP); }
+"&&"			{ count(); return(AND_OP); }
+"||"			{ count(); return(OR_OP); }
+"<="			{ count(); return(LE_OP); }
+">="			{ count(); return(GE_OP); }
+"=="			{ count(); return(EQ_OP); }
+"!="			{ count(); return(NE_OP); }
+";"			{ count(); return(SEMICOLUMN); }
+("{"|"<%")		{ count(); return(OPEN_CURLY_BRACKET); }
+("}"|"%>")		{ count(); return(CLOSED_CURLY_BRACKET); }
+","			{ count(); return(COMMA); }
+":"			{ count(); return(COLON); }
+"="			{ count(); return(ASSIGN); }
+"("			{ count(); return(OPEN_BRACKET); }
+")"			{ count(); return(CLOSED_BRACKET); }
+"!"			{ count(); return(EXCLAM); }
+"-"			{ count(); return(MINUS); }
+"+"			{ count(); return(PLUS); }
+"*"			{ count(); return(MULTIPLY); }
+"/"			{ count(); return(DIVIDE); }
+"%"			{ count(); return(MODULO); }
+"<"			{ count(); return(L_OP); }
+">"			{ count(); return(G_OP); }
+
+[ \t\v\n\f]		{ /*count(); */}
+.			{ fprintf(stderr,"Invalid  syntax on line %d: '%s'\n", yylineno, yytext); }
+
+%%
+
+int column = 0;
+
+int yyerror(void)
+{
+    fprintf(stderr, "Invalid syntax on line %d: '%s'\n", yylineno, yytext);
+}
+
+int yywrap() {
+  return 1;
+}
+
+/*void yyerror(const char *s) {
+  fprintf(stdout, "error: %s\n", s);
+  fprintf(stderr, "error: %s\n", s);
+}*/
+
+void count()
+{
+	/*int i;
+
+	for (i = 0; yytext[i] != '\0'; i++)
+		if (yytext[i] == '\n')
+			column = 0;
+		else if (yytext[i] == '\t')
+			column += 8 - (column % 8);
+		else
+			column++;
+
+	ECHO;*/
+}

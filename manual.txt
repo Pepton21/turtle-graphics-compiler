@@ -1,0 +1,3 @@
+flex -l lexer.txt
+bison -d parser.txt -o y.tab.c
+g++ -o turtle y.tab.c lex.yy.c parse_tree.cpp psHeaderFooter.cpp

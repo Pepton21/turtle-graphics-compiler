@@ -1,0 +1,274 @@
+%{
+#include <stdio.h>
+#include <string.h>
+#include "parse_tree.h"
+#include "psHeaderFooter.h"
+
+using namespace std;
+
+BaseNode* root;
+int yylex();
+bool has_syntax_error = false;
+void yyerror(const char * s);
+%}
+
+%start program
+
+%union{
+  char str[100];
+  double dbl;
+  int no;
+  BaseNode* ptr;
+}
+
+%token IDENTIFIER INT_LITERAL REAL_LITERAL STRING_LITERAL BOOL_LITERAL
+%token INT REAL BOOL STRING FUNCTION 
+%token SEMICOLUMN COMMA PLUS MINUS MULTIPLY DIVIDE MODULO EXCLAM COLON
+%token L_OP G_OP EQ_OP NE_OP LE_OP GE_OP AND_OP OR_OP INC_OP DEC_OP
+%token OPEN_CURLY_BRACKET CLOSED_CURLY_BRACKET OPEN_BRACKET CLOSED_BRACKET
+%token ASSIGN ADD_ASSIGN SUB_ASSIGN MUL_ASSIGN DIV_ASSIGN MOD_ASSIGN
+%token CONTINUE BREAK RETURN DO FOR WHILE ELSE IF
+%type <no> INT_LITERAL
+%type <dbl> REAL_LITERAL
+%type <str> STRING_LITERAL
+%type <str> IDENTIFIER
+%type <no> BOOL_LITERAL
+%type <ptr> constant
+%type <ptr> expression
+%type <ptr> args
+%type <ptr> arg_list
+%type <ptr> call
+%type <ptr> immutable
+%type <ptr> unary_op
+%type <ptr> factor
+%type <ptr> unary_expr
+%type <ptr> type_spec
+%type <ptr> sum_expr
+%type <ptr> sum_op
+%type <ptr> term
+%type <ptr> mul_op
+%type <ptr> not_expr
+%type <ptr> rel_expr
+%type <ptr> rel_op
+%type <ptr> postfix_op
+%type <ptr> simple_expr
+%type <ptr> or_expr
+%type <ptr> and_expr
+%type <ptr> return_stmt
+%type <ptr> assignment_expr
+%type <ptr> assignment_op
+%type <ptr> iteration_stmt
+%type <ptr> selection_stmt
+%type <ptr> statement
+%type <ptr> expression_stmt
+%type <ptr> stmt_list
+%type <ptr> compound_stmt
+%type <ptr> param_list
+%type <ptr> params
+%type <ptr> param
+%type <ptr> fun_decl
+%type <ptr> var_decl
+%type <ptr> decl
+%type <ptr> decl_list
+%type <ptr> program
+
+%locations
+
+%%
+
+program: decl_list { $$ = $1; root = $1;  }
+       ;
+decl_list: decl_list decl { $$ -> addNode($2); }
+         | decl { $$ = new ListNode(yylloc.first_line, "decl_list"); $$ -> addNode($1); }
+         ;
+decl: var_decl { $$ = $1; }
+    | fun_decl { $$ = $1; }
+    ;
+var_decl: IDENTIFIER COLON type_spec ASSIGN simple_expr SEMICOLUMN
+                { $$ = new TernaryNode(yylloc.first_line, "decl", new ValNode<string>("IDENTIFIER",$1, yylloc.first_line), $3, $5); }
+        | IDENTIFIER COLON type_spec SEMICOLUMN { $$ = new BinaryNode(yylloc.first_line, "decl", new ValNode<string>("IDENTIFIER", $1, yylloc.first_line), $3); }
+        ;
+fun_decl: FUNCTION IDENTIFIER OPEN_BRACKET params CLOSED_BRACKET COLON type_spec ASSIGN statement return_stmt
+                   { $$ = new QuaternaryNode(yylloc.first_line, "fun_decl", new ValNode<string>("IDENTIFIER", $2, yylloc.first_line), $4, $7, $9); $$ -> addNode($10);}
+        | FUNCTION IDENTIFIER OPEN_BRACKET params CLOSED_BRACKET ASSIGN statement
+                   { $$ = new TernaryNode(yylloc.first_line, "fun_decl", new ValNode<string>("IDENTIFIER", $2, yylloc.first_line), $4, $7); }
+        ;
+params: param_list { $$ = $1; }
+      | { $$ = new ListNode(yylloc.first_line, "param_list"); }
+      ;
+param_list: param_list COMMA param { $$ -> addNode($3); }
+          | param { $$ = new ListNode(yylloc.first_line, "param_list"); $$ -> addNode($1); }
+          ;
+param: IDENTIFIER COLON type_spec { $$ = new BinaryNode(yylloc.first_line, "param", new ValNode<string>("IDENTIFIER", $1, yylloc.first_line), $3); }
+     ;
+statement: expression_stmt { $$ = $1; }
+         | compound_stmt { $$ = $1; }
+         | selection_stmt { $$ = $1; }
+         | iteration_stmt { $$ = $1; }
+         | var_decl { $$ = $1; }
+         | call SEMICOLUMN { $$ = new UnaryNode(yylloc.first_line, "statement_call", $1); }
+         ;
+compound_stmt: OPEN_CURLY_BRACKET stmt_list CLOSED_CURLY_BRACKET { $$ = $2; }
+             ;
+stmt_list: stmt_list statement { $$ -> addNode($2); }
+         | { $$ = new ListNode(yylloc.first_line, "statement_list"); }
+         ;
+expression_stmt: assignment_expr SEMICOLUMN { $$ = new UnaryNode(yylloc.first_line, "expression_stmt", $1); }
+               | SEMICOLUMN { $$ = new ListNode(yylloc.first_line, "expression_stmt"); }
+               ;
+selection_stmt: IF OPEN_BRACKET or_expr CLOSED_BRACKET statement
+                      { $$ = new BinaryNode(yylloc.first_line, "if", $3, $5); }
+              | IF OPEN_BRACKET or_expr CLOSED_BRACKET statement ELSE statement
+                      { $$ = new TernaryNode(yylloc.first_line, "if_else", $3, $5, $7); }
+              ;
+iteration_stmt: FOR OPEN_BRACKET statement or_expr SEMICOLUMN expression CLOSED_BRACKET statement
+                      { $$ = new QuaternaryNode(yylloc.first_line, "for", $3, $4, $6, $8); }
+              | FOR OPEN_BRACKET statement  or_expr SEMICOLUMN CLOSED_BRACKET statement
+                      { $$ = new TernaryNode(yylloc.first_line, "for", $3, $4, $7); }
+              | WHILE OPEN_BRACKET or_expr CLOSED_BRACKET statement
+                      { $$ = new BinaryNode(yylloc.first_line, "while", $3, $5); }
+              ;
+return_stmt: RETURN expression SEMICOLUMN { $$ = new UnaryNode(yylloc.first_line, "return_value", $2); }
+           ;
+assignment_expr: IDENTIFIER assignment_op expression { $$ = new TernaryNode(yylloc.first_line, "assignment_expr", new ValNode<string>("IDENTIFIER", $1, yylloc.first_line), $2, $3); }
+				| IDENTIFIER postfix_op { $$ = new BinaryNode(yylloc.first_line, "assignment_expr", new ValNode<string>("IDENTIFIER", $1, yylloc.first_line), $2); }
+          ;
+expression: IDENTIFIER assignment_op assignment_expr { $$ = new TernaryNode(yylloc.first_line, "assignment_expr", new ValNode<string>("IDENTIFIER", $1, yylloc.first_line), $2, $3); }
+               | IDENTIFIER postfix_op { $$ = new BinaryNode(yylloc.first_line, "assignment_expr", new ValNode<string>("IDENTIFIER", $1, yylloc.first_line), $2); }
+               | simple_expr { $$ = $1; }
+               ;
+assignment_op: ASSIGN { $$ = new ValNode<string>("assignment_op", "=", yylloc.first_line); }
+             | ADD_ASSIGN { $$ = new ValNode<string>("assignment_op", "+=", yylloc.first_line); }
+             | SUB_ASSIGN { $$ = new ValNode<string>("assignment_op", "-=", yylloc.first_line); }
+             | MUL_ASSIGN { $$ = new ValNode<string>("assignment_op", "*=", yylloc.first_line); }
+             | DIV_ASSIGN { $$ = new ValNode<string>("assignment_op", "/=", yylloc.first_line); }
+             | MOD_ASSIGN { $$ = new ValNode<string>("assignment_op", "%=", yylloc.first_line); }
+             ;
+postfix_op: INC_OP { $$ = new ValNode<string>("postfix_op", "++", yylloc.first_line); }
+          | DEC_OP { $$ = new ValNode<string>("postfix_op", "--", yylloc.first_line); }
+          ;
+type_spec:  INT { $$ = new ValNode<string>("type", "int", yylloc.first_line); }
+         | REAL { $$ = new ValNode<string>("type", "double", yylloc.first_line); }
+         | BOOL { $$ = new ValNode<string>("type", "bool", yylloc.first_line); }
+         | STRING { $$ = new ValNode<string>("type", "string", yylloc.first_line); }
+         ;
+simple_expr: or_expr { $$ = $1; }
+				| sum_expr { $$ = $1; }
+           ;
+or_expr: or_expr OR_OP and_expr { $$ -> addNode($3); }
+       | and_expr { $$ = new ListNode(yylloc.first_line, "or_expr"); $$ -> addNode($1); }
+       ;
+and_expr: and_expr AND_OP not_expr { $$ -> addNode($3); }
+        | not_expr { $$ = new ListNode(yylloc.first_line, "and_expr"); $$ -> addNode($1); }
+        ;
+not_expr: EXCLAM not_expr { $$ = new UnaryNode(yylloc.first_line, "not", $2); }
+        | rel_expr { $$ = $1; }
+        ;
+rel_expr: sum_expr rel_op sum_expr { $$ = new TernaryNode(yylloc.first_line, "rel_expr", $1,$2,$3); }
+        | factor rel_op factor { $$ = new TernaryNode(yylloc.first_line, "rel_expr", $1,$2,$3); }
+        ;
+rel_op: L_OP { $$ = new ValNode<string>("rel_op", "lt", yylloc.first_line); }
+      | G_OP { $$ = new ValNode<string>("rel_op", "gt", yylloc.first_line); }
+      | EQ_OP { $$ = new ValNode<string>("rel_op", "eq", yylloc.first_line); }
+      | NE_OP { $$ = new ValNode<string>("rel_op", "ne", yylloc.first_line); }
+      | LE_OP { $$ = new ValNode<string>("rel_op", "le", yylloc.first_line); }
+      | GE_OP { $$ = new ValNode<string>("rel_op", "ge", yylloc.first_line); }
+      ;
+sum_expr: sum_expr sum_op term { $$ -> addNode(new BinaryNode(yylloc.first_line, "sum_with",$2, $3)); }
+        | term { $$ = new ListNode(yylloc.first_line, "sum_expr"); $$ -> addNode($1); }
+        ;
+sum_op: PLUS { $$ = new ValNode<string>("sum_op", "add", yylloc.first_line); }
+      | MINUS { $$ = new ValNode<string>("sum_op", "sub", yylloc.first_line); }
+      ;
+term: term mul_op unary_expr { $$ -> addNode(new BinaryNode(yylloc.first_line, "mul_with", $2, $3)); }
+    | unary_expr { $$ = new ListNode(yylloc.first_line, "term"); $$ -> addNode($1); }
+    ;
+mul_op: MULTIPLY { $$ = new ValNode<string>("mul_op", "mul", yylloc.first_line); }
+      | DIVIDE { $$ = new ValNode<string>("mul_op", "div", yylloc.first_line); }
+      | MODULO { $$ = new ValNode<string>("mul_op", "mod", yylloc.first_line); }
+      ;
+unary_expr: unary_op factor { $$ = new BinaryNode(yylloc.first_line, "unary_expr", $1, $2);  }
+          | factor { $$ = $1; }
+          ;
+unary_op: PLUS { $$ = new ValNode<string>("unary_op", "+", yylloc.first_line); }
+        | MINUS { $$ = new ValNode<string>("unary_op", "-", yylloc.first_line); }
+        ;
+factor: IDENTIFIER { $$ = new ValNode<string>("IDENTIFIER", $1, yylloc.first_line); }
+      | immutable { $$ = $1; }
+      ;
+
+immutable: OPEN_BRACKET expression CLOSED_BRACKET { $$ = $2; }
+         | call { $$ = $1; }
+         | constant { $$ = $1; }
+         ;
+call: IDENTIFIER OPEN_BRACKET args CLOSED_BRACKET 
+                { $$ = new BinaryNode(yylloc.first_line,"call", new ValNode<string>("IDENTIFIER", $1, yylloc.first_line), $3); }
+    ;
+args: arg_list { $$ = $1; }
+    | { $$ = new ListNode(yylloc.first_line, "argument_list"); }
+    ;
+arg_list: arg_list COMMA expression { $$ -> addNode($3); }
+        | expression { $$ = new ListNode(yylloc.first_line, "argument_list"); $$ -> addNode($1); }
+        ;
+constant: INT_LITERAL { $$ = new ValNode<int>("int", $1, yylloc.first_line);}
+    | REAL_LITERAL { $$ = new ValNode<double>("double", $1, yylloc.first_line);}
+    | STRING_LITERAL { $$ = new ValNode<string>("string", $1, yylloc.first_line);}
+    | BOOL_LITERAL { $$ = new ValNode<int>("bool", $1, yylloc.first_line); }
+    ; 
+%%
+
+void yyerror(const char *s) {
+  //fprintf(stdout, "error on line %d:%d: %s\n",yylloc.first_line, yylloc.first_column, s);
+  has_syntax_error = true;
+  fprintf(stderr, "error on line %d: %s\n", yylloc.last_line, s);
+  //fprintf(stdout, "error: %s\n", s);
+}
+
+int yywrap() {
+  return 1;
+}
+
+int main(int argc, char *argv[]) {
+  
+  if (argc != 2){
+	cout << "Compiler expects 1 argument: source code file name!\n";
+	cout << "Example: turtle source.turtle\n";
+	return 1;
+  }
+  
+  if(strlen(argv[1]) <=7 || strcmp(argv[1] + strlen(argv[1]) - 7, ".turtle")!=0){
+	cout << "Invalid input file: File extension must be '.turtle'!\n";
+	return 1;
+  }
+  
+  char 	base[300] = "",
+		tree[300] = "", 
+		semantic[300] = "", 
+		code[300] = "";
+  strncpy(base, argv[1], strlen(argv[1]) - 7);
+  strcat(strcat(tree, base), ".ast");
+  strcat(strcat(semantic, base), ".pt");
+  strcat(strcat(code, base), ".ps");
+  
+  freopen(argv[1],"r",stdin);
+  
+  yyparse();
+  
+  if (has_syntax_error)
+	return 1;
+  freopen(tree,"w",stdout);
+  root->printNode(0);
+  
+  freopen(semantic,"w",stdout);
+  root->initSemantic();
+  string retSem = root->printSemantic(0, 0, "none", root);
+  if(retSem=="error")
+	return 1;
+	
+  freopen(code,"w",stdout);
+  printHeader();
+  root -> generateCode();
+  printFooter();
+  
+  return 0;
+}
