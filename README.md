@@ -59,7 +59,7 @@ fn main() = {
 }
 ```
 #### Output
-![koch curve](https://github.com/Pepton21/turtle-graphics-compiler/master/images/koch_curve.png)
+![koch curve](https://github.com/Pepton21/turtle-graphics-compiler/blob/master/images/koch_curve.png)
 
 ### 2. Koch Snowflake
 #### Source code
@@ -126,7 +126,7 @@ fn main() = {
 }
 ```
 #### Output
-![cantor set](https://github.com/Pepton21/turtle-graphics-compiler/master/images/cantor_set.png)
+![cantor set](https://github.com/Pepton21/turtle-graphics-compiler/blob/master/images/cantor_set.png)
 
 ### 4. For loop
 #### Source code
@@ -141,7 +141,7 @@ fn main() = {
 }
 ```
 #### Output
-![pentagon](https://github.com/Pepton21/turtle-graphics-compiler/master/images/pentagon.png)
+![pentagon](https://github.com/Pepton21/turtle-graphics-compiler/blob/master/images/pentagon.png)
 
 ### 5. While loop
 #### Source code
@@ -159,7 +159,7 @@ fn main() = {
 }
 ```
 #### Output
-![pyramid](https://github.com/Pepton21/turtle-graphics-compiler/master/images/pyramid.png)
+![pyramid](https://github.com/Pepton21/turtle-graphics-compiler/blob/master/images/pyramid.png)
 
 ### 6. Recursive factorial
 #### Source code
@@ -291,7 +291,7 @@ fn main() = {
 }
 ```
 #### Output
-![turtle](https://github.com/Pepton21/turtle-graphics-compiler/master/images/turtle.png)
+![turtle](https://github.com/Pepton21/turtle-graphics-compiler/blob/master/images/turtle.png)
 ```
 1039
 13.6
